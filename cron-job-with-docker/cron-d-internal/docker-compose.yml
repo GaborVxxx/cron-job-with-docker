@@ -1,0 +1,20 @@
+version: '3.8'
+
+networks:
+  my-cron-network-internal:
+    external: false
+    name: my-cron-network-internal
+    driver: bridge
+
+services:
+  my_cron_job_internal:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: crone_tab_internal
+    environment:
+      - APP_SUPER_SECRET=${APP_SUPER_SECRET}
+    volumes:
+      - ./cron.log:/var/log/cron.log
+    networks:
+      - my-cron-network-internal

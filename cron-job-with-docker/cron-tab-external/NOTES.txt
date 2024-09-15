@@ -1,0 +1,92 @@
+Commands:
+ - docker-compose build --no-cache     <-- to build a fresh image if anything changes
+ - docker-compose up    <-- run the containers with compose
+ - docker exec -it crone_tab_external bash     <-- enter the container bash
+ - ps aux | grep cron    <-- within crone_tab_external bash check if crone is running
+ - cat /etc/cron.d/my-cron    <-- Inspect the cron job
+ - docker exec -it crone_tab_external /usr/local/bin/find-me.sh    <-- manually run the script from outside the container
+ - exit   <-- within crone_tab_external bash to exit the bash window
+
+Dockerfile:
+ -> Select base image
+ -> Make installation non-interactive mode
+ -> Install dependencies
+ -> Copy crontab to Docker and pass it to cron.d part + add permissions
+ -> Copy scripts + Make the scripts executable
+ -> Use entrypoint to run starting script
+
+docker-compose.yml:
+ -> Specify network
+ -> Add service to network
+   - Specify the Dockerfile get used
+   - Name the container
+   - Pass the env var to container
+   - Add volume to persist logs in file
+   - Specify the network the container part of it
+
+crontab:
+ -> SHELL=/bin/bash :
+   - By default, cron jobs are executed using /bin/sh, which is a more basic shell with fewer features than Bash.
+   - Adding SHELL=/bin/bash ensures that all the cron jobs in this crontab file are run using the Bash shell (/bin/bash) instead of the default /bin/sh.
+   - Since your find-me.sh script starts with a #!/bin/bash shebang (meaning it expects to be run in the Bash shell), setting SHELL=/bin/bash in the crontab keeps the cron job's execution environment consistent with the script's intended shell.
+ -> * * * * * root /usr/local/bin/find-me.sh >> /var/log/cron.log 2>&1 :
+   - These five asterisks represent the schedule for the cron job. Each asterisk corresponds to a time unit:
+     - * (minute): Every minute.
+     - * (hour): Every hour.
+     - * (day of the month): Every day of the month.
+     - * (month): Every month.
+     - * (day of the week): Every day of the week.
+   In this case, * * * * * means the job will run every minute of every hour of every day.
+ -> root :
+   - This specifies the user under which the cron job will run. Here, it is set to root, meaning the script will execute with root privileges.
+ -> /usr/local/bin/find-me.sh :
+   - This is the command that will be executed by the cron job. In this case, it’s a script located at /usr/local/bin/find-me.sh.
+ -> >> /var/log/cron.log 2>&1 :
+   This part of the line handles logging of the cron job's output:
+     - ">> /var/log/cron.log": Redirects the standard output (stdout) of the script to the file /var/log/cron.log. The >> operator appends the output to the file rather than overwriting it. This allows you to accumulate logs over time.
+     - "2>&1" : Redirects the standard error (stderr) to the same destination as the standard output. The 2 refers to stderr, and 1 refers to stdout. This means that both standard output and standard error will be written to /var/log/cron.log.
+
+entrypoint.sh:
+ -> "#!/bin/bash" :
+   - This line specifies that the script should be executed using the Bash shell. It ensures that the script runs in the Bash environment, which supports advanced scripting features. We keep the environment consistent.
+ -> "printenv | grep -v "no_proxy" > /etc/environment" :
+   - "printenv" : This command prints all the environment variables currently set in the container.
+   - "grep -v "no_proxy"" : Filters out any environment variables related to no_proxy. This is often done to avoid exporting proxy-related settings that might not be relevant or might interfere with the cron jobs.
+   - "> /etc/environment" : Redirects the filtered environment variables to /etc/environment. This file is used to set system-wide environment variables. By writing to this file, you ensure that these environment variables are available to processes started by cron (and other system processes) inside the container.
+ -> "cron -f" :
+   - "cron" : The command to start the cron daemon.
+   - "-f" : This flag runs cron in the foreground. By default, cron runs as a background service, but running it in the foreground is useful for Docker containers, as it keeps the container active and manages the cron jobs directly. This prevents the container from exiting immediately after the startup script finishes.
+
+find-me.sh:
+  -> "#!/bin/bash" :
+    - This line specifies that the script should be executed using the Bash shell. It ensures that the script runs in the Bash environment, which supports advanced scripting features. We keep the environment consistent.
+  -> "TIMESTAMP=$(date +'%F_%H-%M-%S')" :
+    -  This command generates a timestamp in the format YYYY-MM-DD_HH-MM-SS. The date command formats the current date and time and stores the generated timestamp in the variable TIMESTAMP.
+  -> "echo "---------------------------------------------------------" :
+    - Just for visual separation in log file.
+  -> "echo "RUNNING THE SCRIPT FIND-ME @ $TIMESTAMP" :
+    - These echo commands print a line of dashes and a message indicating that the script is running, including the current timestamp. This is useful for tracking when the script was executed.
+  -> "echo "Environment Variables:" >> /var/log/cron.log" :
+    - This line writes a header into the log file /var/log/cron.log to indicate the start of the environment variable section.
+  -> "printenv >> /var/log/cron.log" :
+    - "printenv" : Outputs all environment variables currently set in the script’s environment.
+    - ">> /var/log/cron.log" : Appends this output to the log file /var/log/cron.log, so you can review all environment variables at the time the script ran.
+  -> "echo " The .env var is: APP_SUPER_SECRET=$APP_SUPER_SECRET" >> /var/log/cron.log"
+    - Logs the value of the APP_SUPER_SECRET environment variable to the log file /var/log/cron.log. This line includes a description and the value of the environment variable, allowing you to verify its presence and value in the log file.
+
+cron.log:
+  The file where we store the output of the logs and errors
+
+.env:
+  The file where we store the app related secrets. (In a normal project this never get version controlled and exposed. Here it's only for presentation. And the data is not really a secret.)
+
+TIP:
+  The issue what people face most of the time is set up of cron when it comes to Docker.
+  For example a common issue come from handling the env variables.
+  Here we pass the env var from .env to The Container from there we use the entrypoint.sh to save it to /etc/environment.
+  This is a key part! As crone will see the env vars at run time now! Plus keep the environment consistent.
+
+Usefully links:
+ - https://unix.stackexchange.com/questions/458713/how-are-files-under-etc-cron-d-used   <-- How are files under /etc/cron.d used?
+
+

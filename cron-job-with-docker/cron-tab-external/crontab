@@ -1,0 +1,2 @@
+SHELL=/bin/bash
+* * * * * root /usr/local/bin/find-me.sh >> /var/log/cron.log 2>&1

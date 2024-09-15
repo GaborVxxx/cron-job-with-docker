@@ -1,0 +1,15 @@
+
+---------------------------------------------------------
+RUNNING THE SCRIPT FIND-ME @ 2024-09-15_11-24-01
+Environment Variables:
+SHELL=/bin/bash
+HOSTNAME=0b833c04efc7
+PWD=/root
+LOGNAME=root
+HOME=/root
+APP_SUPER_SECRET=https://www.youtube.com/@gaborvaszi3234
+SHLVL=2
+PATH=/usr/bin:/bin
+DEBIAN_FRONTEND=noninteractive
+_=/usr/bin/printenv
+ The .env var is: APP_SUPER_SECRET=https://www.youtube.com/@gaborvaszi3234
